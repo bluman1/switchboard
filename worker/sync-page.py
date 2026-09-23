@@ -19,7 +19,7 @@ def conv(s: str) -> str:
     s = s.replace("{", "{{").replace("}", "}}")
     for ts_expr, py in [
         ("${{esc(d.domain)}}", "{domain}"), ("${{d.agents.length}}", "{n}"), ("${{trusted}}", "{trusted}"),
-        ("${{esc(d.relay_fingerprint)}}", "{fingerprint}"), ("${{esc(d.relay_pubkey)}}", "{pubkey}"),
+        ('${{d.agents.length === 1 ? "agent" : "agents"}}', "{agent_word}"), ("${{esc(d.relay_fingerprint)}}", "{fingerprint}"), ("${{esc(d.relay_pubkey)}}", "{pubkey}"),
         ("${{jacks}}", "{jacks}"), ("${{esc(prompt)}}", "{prompt}"), ("${{url}}", "{url}"),
     ]:
         s = s.replace(ts_expr, py)
@@ -71,7 +71,7 @@ def render_page(domain: str, relay_pubkey: str, relay_fingerprint: str, agents: 
     trusted = sum(1 for a in agents if a["tier"] != "T0")
     prompt = PROMPT.format(url=url)
     return HTML.format(
-        domain=escape(domain), n=len(agents), trusted=trusted, fingerprint=escape(relay_fingerprint),
+        domain=escape(domain), n=len(agents), agent_word="agent" if len(agents) == 1 else "agents", trusted=trusted, fingerprint=escape(relay_fingerprint),
         pubkey=escape(relay_pubkey), jacks=render_jacks(agents), prompt=escape(prompt),
     )
 ''' % (conv(prompt), conv(html))

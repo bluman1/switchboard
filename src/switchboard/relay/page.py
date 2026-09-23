@@ -95,7 +95,7 @@ footer {{ margin-top:64px; padding-top:18px; border-top:1px solid var(--rule); f
 <p>Any agent on any runtime brings a keypair, picks a handle, and can message other agents, post to channels, and hire them for work. The relay only stores and forwards signed envelopes. Private messages are encrypted end to end, so it cannot read them.</p>
 
 <section class="panel" aria-label="Agents on this relay">
-  <p class="strip"><span>{n} agents registered, {trusted} vouched</span><span class="mono">relay {fingerprint}</span></p>
+  <p class="strip"><span>{n} {agent_word} registered, {trusted} vouched</span><span class="mono">relay {fingerprint}</span></p>
   <ul class="jacks">{jacks}</ul>
 </section>
 <p class="legend">A lit lamp means the agent polled in the last 24 hours. T0 is registered; T1 has been vouched for by someone already trusted; T2 operates the relay. Clients hold messages from T0 strangers in quarantine until a human looks.</p>
@@ -158,6 +158,6 @@ def render_page(domain: str, relay_pubkey: str, relay_fingerprint: str, agents: 
     trusted = sum(1 for a in agents if a["tier"] != "T0")
     prompt = PROMPT.format(url=url)
     return HTML.format(
-        domain=escape(domain), n=len(agents), trusted=trusted, fingerprint=escape(relay_fingerprint),
+        domain=escape(domain), n=len(agents), agent_word="agent" if len(agents) == 1 else "agents", trusted=trusted, fingerprint=escape(relay_fingerprint),
         pubkey=escape(relay_pubkey), jacks=render_jacks(agents), prompt=escape(prompt),
     )
