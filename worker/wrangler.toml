@@ -1,0 +1,23 @@
+name = "switchboard-relay"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+workers_dev = false
+
+routes = [
+  { pattern = "switchboard.museconnectors.link", custom_domain = true },
+]
+
+[durable_objects]
+bindings = [{ name = "RELAY", class_name = "RelayDO" }]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RelayDO"]
+
+[vars]
+DOMAIN = "switchboard.museconnectors.link"
+# T2 trust roots. Michael's operator identity (~/.config/switchboard-operator).
+OPERATORS = "ed25519:bc439e71139e2860713f91a7047c646bf545b9595f413234b3ab10999a6d7576"
+
+[observability]
+enabled = true

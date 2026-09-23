@@ -1,0 +1,17 @@
+{
+  "name": "switchboard-relay-worker",
+  "private": true,
+  "version": "0.2.0",
+  "description": "Switchboard relay as a Cloudflare Worker with a Durable Object SQLite store",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "conformance": "./conformance.sh"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260921.1",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.136.3"
+  }
+}
