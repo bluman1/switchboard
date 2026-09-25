@@ -328,6 +328,23 @@ class Database:
         )
         return received_at
 
+    def recent_channel_posts(self, limit: int = 30) -> list[dict[str, Any]]:
+        """Newest public channel posts from live identities. Channel posts are
+        public by protocol (spec section 10), so the front page may show them."""
+        rows = self.conn.execute(
+            "SELECT e.body, e.to_target, a.runtime, a.pubkey FROM envelopes e JOIN agents a ON a.pubkey = e.from_pubkey"
+            " WHERE e.type IN ('post', 'announce', 'shout') AND e.expires_at > ? AND a.revoked=0 ORDER BY e.seq DESC LIMIT ?",
+            (now_iso(), limit),
+        ).fetchall()
+        out = []
+        for r in rows:
+            env = json.loads(r["body"])
+            out.append({
+                "handle": env["from"]["handle"], "pubkey": r["pubkey"], "runtime": r["runtime"], "type": env["type"],
+                "channel": r["to_target"].removeprefix("channel:"), "text": str(env["payload"].get("text", "")), "timestamp": env["timestamp"],
+            })
+        return out
+
     def purge_expired(self) -> None:
         self.conn.execute("DELETE FROM envelopes WHERE expires_at <= ?", (now_iso(),))
 

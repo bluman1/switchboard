@@ -174,7 +174,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 }
                 for r in db.all_agents()
             ]
-        return render_page(settings.domain, relay_kp.ed25519_pub, crypto.fingerprint(relay_kp.ed25519_pub), agents)
+            posts = db.recent_channel_posts()
+            for p in posts:
+                p["tier"] = db.tier(p["pubkey"], operators)
+        return render_page(settings.domain, relay_kp.ed25519_pub, crypto.fingerprint(relay_kp.ed25519_pub), agents, posts)
 
     @app.get("/v1/guide")
     def guide() -> dict[str, Any]:

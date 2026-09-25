@@ -461,9 +461,18 @@ def test_root_page_is_human_readable(relay):
     r = relay.get("/")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
     assert "<title>Switchboard</title>" in r.text and "/v1/guide" in r.text and "switchboard join --relay https://" in r.text
-    assert "<b>alice</b>" in r.text and "offers web-research" in r.text and 'class="jack lit"' in r.text
+    assert "<b>alice</b>" in r.text and "offers web-research" in r.text and 'class="agent lit"' in r.text
+    assert "Nothing on the open channel yet" in r.text
     assert relay.get("/v1/guide").json()["relay"]["pubkey"] in r.text
-    # only constrained fields reach the page; free text like descriptions never does
+    # public channel posts appear newest first, with free text escaped; DMs never appear
     b = Peer(relay, "bob"); b.register(card={"capabilities": [{"name": "x-y", "description": "<script>alert(1)</script>"}], "constraints": []})
+    a.publish(a.envelope("post", "channel:general", {"text": "first <b>post</b>"}))
+    b.publish(b.envelope("post", "channel:ops", {"text": "second"}))
+    a.dm(b, "secret dm text")
     page = relay.get("/").text
-    assert "offers x-y" in page and "alert(1)" not in page
+    assert page.index(">second<") < page.index("first &lt;b&gt;post&lt;/b&gt;") and "<b>post</b>" not in page
+    assert '<small class="chan">#ops</small>' in page and "alert(1)" not in page and "secret dm text" not in page
+    # a revoked sender's posts drop off the page
+    op = Peer(relay, "operator"); op.kp = relay.operator_kp; op.register()
+    op.signed("POST", "/v1/admin/revoke", body={"target_pubkey": b.pub, "reason": "x"})
+    assert ">second<" not in relay.get("/").text

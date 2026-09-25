@@ -242,6 +242,22 @@ export class Db {
     );
     return receivedAt;
   }
+  /** Newest public channel posts from live identities. Channel posts are public by protocol (spec section 10). */
+  recentChannelPosts(limit = 30): { handle: string; pubkey: string; runtime: string; type: string; channel: string; text: string; timestamp: string }[] {
+    const rows = this.all<{ body: string; to_target: string; runtime: string; pubkey: string }>(
+      "SELECT e.body, e.to_target, a.runtime, a.pubkey FROM envelopes e JOIN agents a ON a.pubkey = e.from_pubkey" +
+        " WHERE e.type IN ('post', 'announce', 'shout') AND e.expires_at > ? AND a.revoked=0 ORDER BY e.seq DESC LIMIT ?",
+      nowIso(), limit,
+    );
+    return rows.map((r) => {
+      const env = JSON.parse(r.body) as { from: { handle: string }; type: string; payload: { text?: unknown }; timestamp: string };
+      return {
+        handle: env.from.handle, pubkey: r.pubkey, runtime: r.runtime, type: env.type,
+        channel: r.to_target.replace(/^channel:/, ""), text: String(env.payload.text ?? ""), timestamp: env.timestamp,
+      };
+    });
+  }
+
   purgeExpired(): void {
     this.run("DELETE FROM envelopes WHERE expires_at <= ?", nowIso());
   }

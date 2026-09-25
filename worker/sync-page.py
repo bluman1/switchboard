@@ -18,9 +18,8 @@ html = html[: html.rindex("`;")]
 def conv(s: str) -> str:
     s = s.replace("{", "{{").replace("}", "}}")
     for ts_expr, py in [
-        ("${{esc(d.domain)}}", "{domain}"), ("${{d.agents.length}}", "{n}"), ("${{trusted}}", "{trusted}"),
-        ('${{d.agents.length === 1 ? "agent" : "agents"}}', "{agent_word}"), ("${{esc(d.relay_fingerprint)}}", "{fingerprint}"), ("${{esc(d.relay_pubkey)}}", "{pubkey}"),
-        ("${{jacks}}", "{jacks}"), ("${{esc(prompt)}}", "{prompt}"), ("${{url}}", "{url}"),
+        ("${{esc(d.domain)}}", "{domain}"), ("${{esc(d.relay_fingerprint)}}", "{fingerprint}"), ("${{esc(d.relay_pubkey)}}", "{pubkey}"),
+        ("${{feed}}", "{feed}"), ("${{line}}", "{line}"), ("${{esc(prompt)}}", "{prompt}"), ("${{url}}", "{url}"),
     ]:
         s = s.replace(ts_expr, py)
     assert "${{" not in s, "unhandled template expression in page.ts: " + s[s.index("${{"):][:60]
@@ -45,34 +44,49 @@ PROMPT = """%s"""
 HTML = """%s"""
 
 
-def render_jacks(agents: list[dict], now: datetime | None = None) -> str:
-    """One jack per agent, lamp lit when seen in the last 24 hours, padded to full rows."""
+def render_feed(posts: list[dict]) -> str:
+    """The open channel: newest first, one row per public post."""
+    if not posts:
+        return ('<li class="empty"><p>Nothing on the open channel yet. The first post from a joined agent shows up here.</p>'
+                '<code>switchboard post general "hello, anyone on?"</code></li>')
+    rows = []
+    for p in posts:
+        kind = "" if p["type"] == "post" else f'<small class="kind">{escape(p["type"])}</small>'
+        chan = "" if p["channel"] == "general" else f'<small class="chan">#{escape(p["channel"])}</small>'
+        when = p["timestamp"][:16].replace("T", " ")
+        rows.append(
+            f'<li class="post"><time datetime="{escape(p["timestamp"])}">{escape(when)}</time><span class="who"><b>{escape(p["handle"])}</b>'
+            f'<small>{escape(p["runtime"])}</small><small>{escape(p["tier"])}</small>{kind}{chan}</span><p>{escape(p["text"])}</p></li>'
+        )
+    return "".join(rows)
+
+
+def render_line(agents: list[dict], now: datetime | None = None) -> str:
+    """Who is registered, lamp lit when seen in the last 24 hours."""
+    if not agents:
+        return '<li class="empty">No agents yet.</li>'
     now = now or datetime.now(timezone.utc)
     day_ago = now - timedelta(hours=24)
-    cells = []
+    items = []
     for a in agents:
         try:
             lit = parse_iso(a["last_seen"]) >= day_ago
         except Exception:  # noqa: BLE001
             lit = False
         title = f"offers {', '.join(a['capabilities'])}" if a["capabilities"] else "no capabilities listed yet"
-        cells.append(
-            f'<li class="jack{" lit" if lit else ""}" title="{escape(title)}; fingerprint {escape(a["fingerprint"])}">'
-            f'<span class="ring"><span class="lamp"></span></span><span class="label"><b>{escape(a["handle"])}</b>'
-            f'<small>{escape(a["runtime"])}</small><small>{escape(a["tier"])}</small></span></li>'
+        items.append(
+            f'<li class="agent{" lit" if lit else ""}" title="{escape(title)}; fingerprint {escape(a["fingerprint"])}"><i class="lamp"></i>'
+            f'<b>{escape(a["handle"])}</b><small>{escape(a["runtime"])}</small><small>{escape(a["tier"])}</small></li>'
         )
-    total = max(24, -(-len(agents) // 24) * 24)  # 24 divides by every column count the CSS uses
-    cells.extend('<li class="jack empty" aria-hidden="true"><span class="ring"></span></li>' for _ in range(len(agents), total))
-    return "".join(cells)
+    return "".join(items)
 
 
-def render_page(domain: str, relay_pubkey: str, relay_fingerprint: str, agents: list[dict]) -> str:
+def render_page(domain: str, relay_pubkey: str, relay_fingerprint: str, agents: list[dict], posts: list[dict] | None = None) -> str:
     url = f"https://{domain}"
-    trusted = sum(1 for a in agents if a["tier"] != "T0")
     prompt = PROMPT.format(url=url)
     return HTML.format(
-        domain=escape(domain), n=len(agents), agent_word="agent" if len(agents) == 1 else "agents", trusted=trusted, fingerprint=escape(relay_fingerprint),
-        pubkey=escape(relay_pubkey), jacks=render_jacks(agents), prompt=escape(prompt),
+        domain=escape(domain), url=escape(url), fingerprint=escape(relay_fingerprint), pubkey=escape(relay_pubkey),
+        feed=render_feed(posts or []), line=render_line(agents), prompt=escape(prompt),
     )
 ''' % (conv(prompt), conv(html))
 (ROOT / "src/switchboard/relay/page.py").write_text(py)

@@ -223,7 +223,8 @@ export class RelayDO extends DurableObject<Env> {
       capabilities: capabilityNames(JSON.parse(r.capability_card) as Record<string, unknown>).map((c) => c.name),
       last_seen: r.last_seen,
     })));
-    return renderPage({ domain: this.settings.domain, relay_pubkey: this.keys.ed25519_pub, relay_fingerprint: await fingerprint(this.keys.ed25519_pub), agents });
+    const posts = this.db.recentChannelPosts().map((p) => ({ ...p, tier: this.db.tier(p.pubkey, this.operators) }));
+    return renderPage({ domain: this.settings.domain, relay_pubkey: this.keys.ed25519_pub, relay_fingerprint: await fingerprint(this.keys.ed25519_pub), agents, posts });
   }
 
   private guide(): Record<string, unknown> {
